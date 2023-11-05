@@ -1,5 +1,11 @@
 import cupy as cp
 import collections
+from PIL import Image
+
+def compress_image(img):
+    img = Image.fromarray(img)
+    return cp.asarray(img.resize((9408,7936),Image.BICUBIC))
+
 
 def complement_stain_matrix(w):
 
