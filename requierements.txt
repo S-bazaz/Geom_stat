@@ -1,0 +1,11 @@
+matplotlib
+cupy-cuda12x
+numpy
+skimage
+histomicstk
+PIL
+pathlib
+collections
+
+ripser
+persim
