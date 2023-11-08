@@ -19,13 +19,9 @@ pio.renderers = "browser"
 #      Imports   #
 ##################
 root_path = Path(os.path.abspath(__file__)).parents[0]
-print(root_path)
 sys.path.insert(0, str(root_path))
 
 from utils_tda import (
-    get_h1_mat_from_binary_mat,
-    get_dataframe_from_h1_mat,
-    get_h1_fig_from_df,
     get_h1_diagrams_from_dct_bin,
 )
 
@@ -76,7 +72,7 @@ dct_df, dct_figs = get_h1_diagrams_from_dct_bin(
     save_df=True,
     save_png=True,
     save_html=True,
-    parquet_name="h1_test",
+    parquet_name="test",
     saving_path=saving_path,
 )
 
