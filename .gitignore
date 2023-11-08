@@ -24,6 +24,6 @@ TestResults.xml
 #raw data
 *.tiff
 #outputs
-*.pdg
+*.png
 *.csv
-
+*.html
