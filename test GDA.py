@@ -28,7 +28,6 @@ from utils import (
 img_path = root_path.joinpath("raw_images")
 
 img_name = "1.tiff"
-#img_name = "5.tiff"
 
 test_img_path = str(img_path.joinpath(img_name))
 #img = io.imread("5.tiff")[:, :, :3]
