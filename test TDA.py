@@ -128,8 +128,6 @@ rank_h1 = np.flip(np.argsort(persistence_h1))
 
 ranked_persistence_vector = np.concatenate([dgm[0][rank_h0],dgm[1][rank_h1]]) # Vecteur de persistance concaténé
 
-print(ranked_persistence_vector)
-
 df0,df1 = get_dataframes_from_h0_h1_mats(dgm[0], dgm[1])
 
 
