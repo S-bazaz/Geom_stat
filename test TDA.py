@@ -12,6 +12,7 @@ import seaborn as sns
 from ripser import lower_star_img, ripser
 from plotly.offline import plot
 import plotly.io as pio
+import cv2
 
 pio.renderers = "browser"
 
@@ -35,7 +36,7 @@ saving_path = root_path.joinpath("outputs")
 
 
 img_name = "test_binary.png"
-img_name2 = "cellules.jfif"
+img_name2 = "Gleason 3/147.png"
 
 test_img_path = str(img_path.joinpath(img_name))
 test_img_path2 = str(img_path.joinpath(img_name2))
@@ -45,17 +46,21 @@ img = io.imread(test_img_path)
 
 
 img2 = io.imread(test_img_path2)
+img2 = cv2.GaussianBlur(img2, (9,9), 0)
+
 # binarizationand
 # bin_mat = (img[:, :, 0] != 0) + 0
-bin_mat2 = (img2[:, :, 0] > 30) + 0
+# bin_mat2 = (img2[:, :, 0] > 30) + 0
 
-for tau in range(1,255,10):
-    bin_mat2 = (img2[:, :, 0] > tau) + 0
-    
-# sns.heatmap(1 - bin_mat)
-# plt.show()
-    sns.heatmap(bin_mat2)
-    plt.show()
+for tau in range(254,0,-1):
+    bin_mat2 = (img2 > tau) + 0
+    plt.imshow(bin_mat2, cmap = "gray")
+    plt.savefig(root_path / f"binary/{tau}.png")
+    plt.close()
+# # sns.heatmap(1 - bin_mat)
+# # plt.show()
+#     sns.heatmap(bin_mat2)
+#     plt.show()
     
     
 import numpy as np
@@ -113,7 +118,7 @@ def lower_star_img2(img):
 
     return ripser(sparseDM, distance_matrix=True, maxdim=1)["dgms"]
 
-dgm = lower_star_img2(img2[:,:,0])
+dgm = lower_star_img2(img2[:,:])
 
 df0,df1 = get_dataframes_from_h0_h1_mats(dgm[0], dgm[1])
 
