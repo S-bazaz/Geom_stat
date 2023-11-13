@@ -130,8 +130,6 @@ ranked_persistence_vector = np.concatenate([dgm[0][rank_h0],dgm[1][rank_h1]]) # 
 
 df0,df1 = get_dataframes_from_h0_h1_mats(dgm[0], dgm[1])
 
-
-
 # print(dgm)
 plot(get_h_fig_from_df(df1))
 ############################

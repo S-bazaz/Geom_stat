@@ -62,8 +62,7 @@ def get_dataframes_from_h0_h1_mats(h0_diagram: np.ndarray, h1_diagram: np.ndarra
         df = pd.DataFrame({"Birth": h_diag[:, 0], "Death": h_diag[:, 1]})
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df.dropna(inplace=True)
-        df["rayon_moyen"] = (df["Birth"] + df["Death"]) / 2
-        df["Hole scale"] = np.sqrt(2) * (df["Death"] - df["rayon_moyen"])
+        df["Hole scale"] =  (df["Death"] - df["Birth"])/np.sqrt(2)
         accu.append(df[["Birth", "Death", "Hole scale"]].copy())
     return tuple(accu)
 
