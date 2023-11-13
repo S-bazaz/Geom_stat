@@ -52,11 +52,11 @@ img2 = cv2.GaussianBlur(img2, (9,9), 0)
 # bin_mat = (img[:, :, 0] != 0) + 0
 # bin_mat2 = (img2[:, :, 0] > 30) + 0
 
-for tau in range(254,0,-1):
-    bin_mat2 = (img2 > tau) + 0
-    plt.imshow(bin_mat2, cmap = "gray")
-    plt.savefig(root_path / f"binary/{tau}.png")
-    plt.close()
+# for tau in range(254,0,-1):
+#     bin_mat2 = (img2 > tau) + 0
+#     plt.imshow(bin_mat2, cmap = "gray")
+#     plt.savefig(root_path / f"binary/{tau}.png")
+#     plt.close()
 # # sns.heatmap(1 - bin_mat)
 # # plt.show()
 #     sns.heatmap(bin_mat2)
@@ -120,7 +120,19 @@ def lower_star_img2(img):
 
 dgm = lower_star_img2(img2[:,:])
 
+persistence_h0 = dgm[0][:,1]-dgm[0][:,0] # Persistance de chaque feature de H1
+persistence_h1 = dgm[1][:,1]-dgm[1][:,0] # Persistance de chaque feature de H0
+
+rank_h0 = np.flip(np.argsort(persistence_h0)) # Permutation pour ordonner les features par persistance décroissante
+rank_h1 = np.flip(np.argsort(persistence_h1))
+
+ranked_persistence_vector = np.concatenate([dgm[0][rank_h0],dgm[1][rank_h1]]) # Vecteur de persistance concaténé
+
+print(ranked_persistence_vector)
+
 df0,df1 = get_dataframes_from_h0_h1_mats(dgm[0], dgm[1])
+
+
 
 # print(dgm)
 plot(get_h_fig_from_df(df1))
