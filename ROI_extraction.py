@@ -5,6 +5,7 @@ import cupy as cp
 import numpy as np
 import histomicstk as htk
 from tqdm import tqdm
+import cv2
 
 from PIL import Image
 from pathlib import Path
@@ -21,6 +22,7 @@ def get_ROIs(img):
     for i in range(nrows//512):
         for j in range(ncols//512):
             ROI = img[256+512*i:256+512*(i+1),256+512*j:256+512*(j+1)]
+            ROI = cv2.GaussianBlur(ROI, (9,9), 0)
             ROIs.append(ROI)
     return ROIs
 
@@ -32,7 +34,7 @@ def deconvolution(ROIs, W):
             ROIs_gray.append(ROI_gray)
     return ROIs_gray
 
-indices = {"Gleason 3":0, "Gleason 4":0, "Gleason 5":0,}
+indices = {"Gleason 3":1, "Gleason 4":1, "Gleason 5":1}
 stain_color_map = htk.preprocessing.color_deconvolution.stain_color_map
 stains = ["hematoxylin", "eosin","null"]
 W = np.array([stain_color_map[st] for st in stains]).T
@@ -44,5 +46,5 @@ for path in tqdm(paths):
     ROIs_gray = deconvolution(ROIs,W)
     for ROI in ROIs_gray:
         index = indices[cell_type]
-        Image.fromarray(ROI).save(root_path / f"ROIs/{cell_type}/{index}.png")
+        Image.fromarray(ROI).save(root_path / f"raw_images/{cell_type}/{index}.png")
         indices[cell_type] += 1
