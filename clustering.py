@@ -41,8 +41,8 @@ saving_path = root_path.joinpath("outputs")
 #    Test   #
 #############
 
-
-df_ident, embedding_mat = homology_parquet_to_matrix(str(saving_path.joinpath(f"test.parquet")))
+base_name = "test"
+df_ident, embedding_mat = homology_parquet_to_matrix(str(saving_path.joinpath(f"{base_name}.parquet")))
 
 embedding_mat2 = pca_before_clustering(embedding_mat, n_components = 4 ,standard = False)
 Z = linkage(embedding_mat2, 'ward')
