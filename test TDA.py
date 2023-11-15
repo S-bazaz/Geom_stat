@@ -47,22 +47,13 @@ from utils_tda import load_img_and_save_homology_to_parquet
 # img2 = io.imread(test_img_path2)
 # img2 = cv2.GaussianBlur(img2, (9,9), 0)
 
-load_img_and_save_homology_to_parquet(root_path)
+
 
 
 #################
 #   pipelines   #
 #################
+base_name = "b1"
+load_img_and_save_homology_to_parquet(root_path,  parquet_name=base_name)
 
-# dct_bin_mat = {"cerveau": img, "cellules": img2}
 
-# dct_df, dct_figs = get_h1_diagrams_from_dct_mat(
-#     dct_bin_mat,
-#     save_df=True,
-#     save_png=True,
-#     save_html=True,
-#     parquet_name="test",
-#     saving_path=saving_path,
-# )
-
-# plot(dct_figs["cerveau"]["h0"])

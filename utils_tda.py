@@ -113,7 +113,7 @@ def import_where_right_format(
 ) -> None:
     """
     Vérifie si le format du fichier correspond à ceux spécifiés dans la liste `formats`,
-    puis ajoute le chemin du fichier au dictionnaire `dct_accu` en utilisant le nom de fichier sans extension comme clé.
+    puis importe le fichier
 
     Args:
         file_path (str): Le chemin du fichier.
@@ -144,7 +144,6 @@ def get_all_data_from_path(
         path (str): Le chemin du répertoire à parcourir.
         formats (List[str]): Une liste de formats valides.
         dct_accu (Dict[str, str]): Le dictionnaire pour stocker les chemins des fichiers au format correct.
-        fs (Union[None, s3fs.S3FileSystem], optionnel): L'objet S3FileSystem pour le stockage sur le cloud.
             Par défaut, None.
 
     Returns:
@@ -328,18 +327,18 @@ def get_h_fig_from_df(df: pd.DataFrame, title: str = "<b>H0 or H1</b>") -> go.Fi
 
 
 def get_h1_diagrams_from_dct_mat(
-    dct_bin_mat: dict,
+    dct_img: dict,
     save_df: bool = True,
     save_png: bool = True,
     save_html: bool = False,
-    parquet_name: str = "H1_test",
+    parquet_name: str = "base_test",
     saving_path: str = saving_path,
 ) -> Tuple[dict, dict]:
     """
     Compute H1 homology diagrams and optionally save them as DataFrames, PNG images, and HTML files.
 
     Args:
-        dct_bin_mat (dict): A dictionary containing image IDs as keys and binary matrices as values.
+        dct_img
         save_df (bool): Whether to save H1 diagrams as DataFrames.
         save_png (bool): Whether to save H1 diagrams as PNG images.
         save_html (bool): Whether to save H1 diagrams as HTML files.
@@ -349,42 +348,50 @@ def get_h1_diagrams_from_dct_mat(
     Returns:
         Tuple[dict, dict]: A tuple containing dictionaries with H1 diagrams and associated Plotly figures.
     """
-    dct_df = {}
-    dct_figs = {}
-
+    
     if save_df:
+        
         parquet_path = str(saving_path.joinpath(f"{parquet_name}.parquet"))
-        col_diag = ["Birth", "Death", "Persistence"]
         lst_col = [
-            "img_id"] + [f"h0__{col}s"for col in col_diag] + [f"h1__{col}s"for col in col_diag]
-        df_to_save = pd.DataFrame(columns=lst_col)
+            "img_id",
+            "h0__Births",
+            "h0__Deaths",
+            "h0__Persistences",
+            "h1__Births",
+            "h1__Deaths",
+            "h1__Persistences",
+            ]
+        df_to_save = pd.DataFrame(columns=lst_col, data = np.full([len(dct_img),len(lst_col)], ""))
+        
+        columns_as_strings = lambda df : df.astype(str).apply("\n".join, axis=0).values
+        
+        def update_df_to_save(i, img_id, df_h0, df_h1):
+            df_to_save.iloc[i,0] = img_id
+            df_to_save.iloc[i,1:4] = columns_as_strings(df_h0)
+            df_to_save.iloc[i,4:] = columns_as_strings(df_h1)
+        
+        
+    
+    i=0
+    for img_id, img in dct_img.items():
 
-    for img_id, bin_mat in dct_bin_mat.items():
-
-        h0_diagram, h1_diagram = get_h0_h1_mats_from_img(bin_mat)
-        df_h0, df_h1 = get_dataframes_from_h0_h1_mats(h0_diagram, h1_diagram)
-        dct_df[img_id] = {"h0": df_h0.copy, "h1": df_h1.copy}
+        df_h0, df_h1 = get_dataframes_from_h0_h1_mats(
+            *get_h0_h1_mats_from_img(img)
+            )
+        
+        if save_png or save_html:
+            fig_h0 = get_h_fig_from_df(
+                df_h0, title=f"<b>0 dimensional holes</b> {img_id}")
+    
+            fig_h1 = get_h_fig_from_df(
+                df_h1, title=f"<b>1 dimensional holes</b> {img_id}")
 
         if save_df:
-            dct_row = {"img_id": img_id}
-            dct_row.update(
-                {f"h0__{col}s": df_h0[col].to_string(
-                    index=False, header=False) for col in df_h0}
-            )
-            dct_row.update(
-                {f"h1__{col}s": df_h1[col].to_string(
-                    index=False, header=False,) for col in df_h1}
-            )
+            update_df_to_save(i, img_id, df_h0, df_h1)
 
-            df_to_save.loc[len(df_to_save)] = dct_row.copy()
+        i+=1
 
-        fig_h0 = get_h_fig_from_df(
-            df_h0, title=f"<b>0 dimensional holes</b> {img_id}")
 
-        fig_h1 = get_h_fig_from_df(
-            df_h1, title=f"<b>1 dimensional holes</b> {img_id}")
-
-        dct_figs[img_id] = {"h0": fig_h0, "h1": fig_h1}
 
         fig_core_name = f"{parquet_name}_{img_id}"
 
@@ -423,12 +430,11 @@ def get_h1_diagrams_from_dct_mat(
             append=os.path.exists(parquet_path),
             write_index=False,
         )
-    return dct_df, dct_figs
 
 
 #### Final function######
 
-def load_img_and_save_homology_to_parquet(root_path, parquet_name="H1_test"):
+def load_img_and_save_homology_to_parquet(root_path, parquet_name="basetest"):
     dct_img = get_selected_img(root_path)
     get_h1_diagrams_from_dct_mat(
         dct_img,
