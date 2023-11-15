@@ -19,10 +19,9 @@ from pathlib import Path
 root_path = Path(os.path.abspath(__file__)).parents[0]
 sys.path.insert(0, str(root_path))
 
-from utils import (
+from utils_gda import (
     compress_image,
     color_deconvolution
-    
     )
 
 img_path = root_path.joinpath("raw_images")
