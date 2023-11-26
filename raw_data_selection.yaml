@@ -1,13 +1,13 @@
 raw_data_formats:
   - png
 
-raw_images:
-  to_plot:
-    Gleason 3:
-    Gleason 4:
-    Gleason 5:
-    
 # raw_images:
-#   Gleason 3:
-#   Gleason 4:
-#   Gleason 5:
+#   to_plot:
+#     Gleason 3:
+#     Gleason 4:
+#     Gleason 5:
+    
+raw_images:
+  Gleason 3:
+  Gleason 4:
+  Gleason 5:

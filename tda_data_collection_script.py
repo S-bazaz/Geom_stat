@@ -33,7 +33,7 @@ base_name = "b1"
 
 ###### save vectors ######
 load_img_and_save_homology_to_parquet(
-    root_path,  parquet_name=base_name, save_df=True, save_png=False, batch_size=20)
+    root_path,  parquet_name=base_name, save_df=True, save_png=True, batch_size=20)
 
 
 ###### Voir clustering.py pour l'étude des bases sauvegardés ######
