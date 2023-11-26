@@ -17,7 +17,9 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 #from umap import UMAP
 
-from scipy.cluster.hierarchy import dendrogram, linkage
+from tqdm import tqdm
+
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 import matplotlib.pyplot as plt
 
 
@@ -30,8 +32,9 @@ root_path = Path(os.path.abspath(__file__)).parents[0]
 sys.path.insert(0, str(root_path))
 
 from utils_tda_and_clustering import (
-    homology_parquet_to_matrix,
-    pca_before_clustering,
+    homology_parquet_to_matrix_bootstraps,
+    make_pca_bootstraps,
+    get_clusters
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -46,39 +49,43 @@ saving_path = root_path.joinpath("outputs")
 # importation and vectorization of diagrams
 base_name = "b1"
 base_path = str(saving_path.joinpath(f"{base_name}.parquet"))
-df_ident, embedding_mat = homology_parquet_to_matrix(base_path)
+df_ident, bootstraps, original = homology_parquet_to_matrix_bootstraps(base_path)
+print("bootstrap ok")
 
 # get images ids to identify similarities with Gleason classification
 img_ids = df_ident["img_id"]
 
 # PCA
-embedding_mat2 = pca_before_clustering(embedding_mat, n_components = 5, standard = False)
+
+reduced_bootstraps, reduced_original, vars_explained = make_pca_bootstraps(bootstraps, original)
+
+# Ward clustering for all bootstraps
+clustered_bootstraps, clustered_original = get_clusters(reduced_bootstraps, reduced_original)
 
 
-# Ward clustering
-linked = linkage(embedding_mat2, 'ward')
-sns.heatmap(linked, yticklabels=img_ids)
+# sns.heatmap(linked, yticklabels=img_ids)
 
-fig = plt.figure(figsize=(15, 15))
-dn = dendrogram(linked, orientation='right', show_leaf_counts=False, no_plot=True)
-temp = {dn["leaves"][ii]: img_ids[ii] for ii in range(len(dn["leaves"]))}
-def llf(xx):
-    return "{} - custom label!".format(temp[xx])
+# fig = plt.figure(figsize=(15, 15))
+# dn = dendrogram(linked, orientation='right', show_leaf_counts=False, no_plot=True)
+# temp = {dn["leaves"][ii]: img_ids[ii] for ii in range(len(dn["leaves"]))}
+# def llf(xx):
+#     return "{} - custom label!".format(temp[xx])
 
-dendrogram(
-            linked,
-            # truncate_mode='lastp',  # show only the last p merged clusters
-            # p=p,  # show only the last p merged clusters
-            leaf_label_func=llf,
-            leaf_rotation=60.,
-            leaf_font_size=12.,
-            show_contracted=True,  # to get a distribution impression in truncated branches
-            )
+# dendrogram(
+#             linked,
+#             # truncate_mode='lastp',  # show only the last p merged clusters
+#             # p=p,  # show only the last p merged clusters
+#             leaf_label_func=llf,
+#             leaf_rotation=60.,
+#             leaf_font_size=12.,
+#             show_contracted=True,  # to get a distribution impression in truncated branches
+#             )
 
-plt.show()
+# plt.show()
 
 
 # t-SNE clustering
-embedding_mat3 = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=10).fit_transform(embedding_mat2)
-fig = px.scatter(x = embedding_mat3[:,0], y = embedding_mat3[:,1],template="plotly_dark", hover_name = img_ids, title = "T-SNE après ACP")
-plot(fig )
+for k in range(3,4):
+    embedding_mat3 = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=47).fit_transform(embedding_mat2)
+    fig = px.scatter(x = embedding_mat3[:,0], y = embedding_mat3[:,1],template="plotly_dark", hover_name = img_ids, title = "T-SNE après ACP")
+    plot(fig)

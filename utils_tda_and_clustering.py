@@ -14,6 +14,7 @@ import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 
+from tqdm import tqdm
 
 from pathlib import Path
 from ripser import ripser, Rips
@@ -29,7 +30,7 @@ from sklearn.manifold import TSNE
 # from scipy.spatial.distance import pdist
 # from scipy.cluster.hierarchy import ward
 
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 import matplotlib.pyplot as plt
 
 from plotly.offline import plot
@@ -470,7 +471,7 @@ def load_img_and_save_homology_to_parquet(root_path: Path, parquet_name: str = "
     n_img = img_path_and_ids.shape[0]
     n_batch = n_img // batch_size
 
-    for img_paths_batch in np.array_split(img_path_and_ids, n_batch):
+    for img_paths_batch in tqdm(np.array_split(img_path_and_ids, n_batch)):
         get_h1_diagrams_from_dct_paths(
             img_paths_batch,
             save_df=save_df,
@@ -485,7 +486,7 @@ def load_img_and_save_homology_to_parquet(root_path: Path, parquet_name: str = "
 #   parquet and clustering    #
 ###############################
 
-def homology_parquet_to_matrix(base_path: Path):
+def homology_parquet_to_matrix_bootstraps(base_path: Path):
     """
     Read homology information from a Parquet file and create an embedding matrix.
 
@@ -500,12 +501,35 @@ def homology_parquet_to_matrix(base_path: Path):
     # print(f"loading {base_path}")
     # print("##columns## \n", list(df))
 
-    df_ident = pd.DataFrame({"mat_inex": np.arange(
+    df_ident = pd.DataFrame({"mat_index": np.arange(
         len(df.index)), "df_index": df.index, "img_id": df["img_id"]})
-    len_h0 = df['h0__Deaths'].str.split("\n").apply(len)
-    len_h1 = df['h1__Deaths'].str.split("\n").apply(len)
-    min_len_h0 = len_h0.min()
-    min_len_h1 = len_h1.min()
+    
+    indices_gleason3 = np.array([i for i in np.arange(len(df.index)) if df.iloc[i]["img_id"][:9]=="Gleason 3"])
+    indices_gleason4 = np.array([i for i in np.arange(len(df.index)) if df.iloc[i]["img_id"][:9]=="Gleason 4"])
+    indices_gleason5 = np.array([i for i in np.arange(len(df.index)) if df.iloc[i]["img_id"][:9]=="Gleason 5"])
+
+    # Bootstraps creation
+
+    bootstraps = []
+
+    for _ in tqdm(range(100)): # We create 100 bootstraps
+        indices_gleason3_bootstrap = np.random.choice(np.arange(len(indices_gleason3)),len(indices_gleason3),replace=True)
+        indices_gleason4_bootstrap = np.random.choice(np.arange(len(indices_gleason4)),len(indices_gleason4),replace=True)
+        indices_gleason5_bootstrap = np.random.choice(np.arange(len(indices_gleason5)),len(indices_gleason5),replace=True)
+
+        gleason3_bootstrap = indices_gleason3[indices_gleason3_bootstrap]
+        gleason4_bootstrap = indices_gleason4[indices_gleason4_bootstrap]
+        gleason5_bootstrap = indices_gleason5[indices_gleason5_bootstrap]
+
+        indices_bootstrap = np.concatenate([gleason3_bootstrap, gleason4_bootstrap, gleason5_bootstrap]) # To respect the proportion of each Gleason type
+
+        bootstrap = df.iloc[indices_bootstrap]
+        bootstrap = bootstrap.reset_index(drop=True)
+
+        len_h0 = bootstrap['h0__Deaths'].str.split("\n").apply(len)
+        len_h1 = bootstrap['h1__Deaths'].str.split("\n").apply(len)
+        min_len_h0 = len_h0.min()
+        min_len_h1 = len_h1.min()
     # mean_len_h0 = len_h0.mean()
     # mean_len_h1 = len_h1.mean()
 
@@ -514,23 +538,39 @@ def homology_parquet_to_matrix(base_path: Path):
     # print("\n ##h1 length##")
     # print(len_h1.describe())
 
-    def f_sort_cut(s, cut):
-        lst = s.split("\n")
-        lst = list(map(float, lst))
-        lst.sort(reverse=True)
-        lst = lst[:cut]
-        return lst
+        def f_sort_cut(s, cut):
+            lst = s.split("\n")
+            lst = list(map(float, lst))
+            lst.sort(reverse=True)
+            lst = lst[:cut]
+            return lst
 
-    def f_h0(s): return f_sort_cut(s, min_len_h0)
-    def f_h1(s): return f_sort_cut(s, min_len_h1)
+        def f_h0(s): return f_sort_cut(s, min_len_h0)
+        def f_h1(s): return f_sort_cut(s, min_len_h1)
 
+        series_h0 = bootstrap['h0__Persistences'].apply(f_h0)
+        series_h1 = bootstrap['h1__Persistences'].apply(f_h1)
+        embedding_mat = np.zeros((len(bootstrap.index), min_len_h0+min_len_h1))
+
+        for i in range(len(bootstrap.index)):
+            embedding_mat[i, :] = np.array(series_h0[i]+series_h1[i])
+        b = {"embedding_mat" : embedding_mat, "images" : df_ident["img_id"].iloc[indices_bootstrap]}
+        bootstraps.append(b)
+
+    # Original data processing
+    len_h0 = df['h0__Deaths'].str.split("\n").apply(len)
+    len_h1 = df['h1__Deaths'].str.split("\n").apply(len)
+    min_len_h0 = len_h0.min()
+    min_len_h1 = len_h1.min()
     series_h0 = df['h0__Persistences'].apply(f_h0)
     series_h1 = df['h1__Persistences'].apply(f_h1)
-    embedding_mat = np.zeros((len(df.index), min_len_h0+min_len_h1))
+    original_embedding_mat = np.zeros((len(df.index), min_len_h0+min_len_h1))
 
     for i in range(len(df.index)):
-        embedding_mat[i, :] = np.array(series_h0[i]+series_h1[i])
-    return df_ident, embedding_mat
+        original_embedding_mat[i, :] = np.array(series_h0[i]+series_h1[i])
+    original = {"embedding_mat": original_embedding_mat, "images" : df_ident["img_id"].to_numpy()}
+    
+    return df_ident, bootstraps, original
 
 
 def pca_before_clustering(data, n_components=6, standard=True):
@@ -552,5 +592,41 @@ def pca_before_clustering(data, n_components=6, standard=True):
 
     pca = PCA(n_components=n_components)
     res = pca.fit_transform(data)
-    print("variance ratio", pca.explained_variance_ratio_)
-    return res
+    # print("variance ratio", pca.explained_variance_ratio_)
+    return res,np.sum(pca.explained_variance_ratio_)
+
+def make_pca_bootstraps(bootstraps, original, n_components = 6):
+    vars_explained = []
+    for b in bootstraps:
+        embedding_mat = b["embedding_mat"]
+        pca, var_explained = pca_before_clustering(embedding_mat, n_components = n_components, standard = False)
+        b["reduced"] = pca
+        vars_explained.append(var_explained)
+    reduced_original,_ = pca_before_clustering(original["embedding_mat"], n_components = n_components, standard = False) # We will need the original data to compute the Gap Statistic
+    original["reduced"] = reduced_original
+    return bootstraps, original, vars_explained
+
+def get_clusters(bootstraps, original,  nb_clusters=6):
+    for b in bootstraps:
+        linked = linkage(b["reduced"], "ward")
+        clusters_indices = fcluster(linked, nb_clusters, criterion="maxclust")
+        clusters = [[j for j in range(len(clusters_indices)) if clusters_indices[j]==i] for i in range(1,nb_clusters+1)]
+        b["clusters"] = clusters
+    linked = linkage(original["reduced"], "ward")
+    clusters_indices = fcluster(linked, nb_clusters, criterion="maxclust")
+    clusters = [[j for j in range(len(clusters_indices)) if clusters_indices[j]==i] for i in range(1,nb_clusters+1)]
+    original["clusters"] = clusters
+    return bootstraps, original
+
+def transform_gleason(bootstraps):
+    for b in bootstraps:
+        images = b["images"]
+        gleason_coords = []
+        for c in b["clusters"]:
+            cluster_images = images.iloc[c]
+            nb_gleason3 = np.sum([(s[8]=="3") for s in cluster_images])
+            nb_gleason4 = np.sum([(s[8]=="4") for s in cluster_images])
+            nb_gleason5 = np.sum([(s[8]=="5") for s in cluster_images])
+            gleason_coords.append([nb_gleason3, nb_gleason4, nb_gleason5])
+        b["gleason_coords"] = np.array(gleason_coords)
+    return bootstraps
