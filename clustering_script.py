@@ -18,8 +18,8 @@ from sklearn.manifold import TSNE
 #from umap import UMAP
 
 from tqdm import tqdm
+import numpy as np
 
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 import matplotlib.pyplot as plt
 
 
@@ -34,7 +34,10 @@ sys.path.insert(0, str(root_path))
 from utils_tda_and_clustering import (
     homology_parquet_to_matrix_bootstraps,
     make_pca_bootstraps,
-    get_clusters
+    get_clusters,
+    transform_gleason,
+    meta_clustering,
+
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -61,6 +64,16 @@ reduced_bootstraps, reduced_original, vars_explained = make_pca_bootstraps(boots
 
 # Ward clustering for all bootstraps
 clustered_bootstraps, clustered_original = get_clusters(reduced_bootstraps, reduced_original)
+
+# Adding the gleason space coordinates to the bootstraps
+gleason_bootstraps = transform_gleason(bootstraps)
+
+# Extracting only Gleason coordinates and reshaping the matrix
+gleason_points = np.array([b["gleason_coords"] for b in gleason_bootstraps]).reshape(-1,3)
+
+# Meta-clustering to get the 6 meta-clusters
+meta_clusters_indices = meta_clustering(gleason_points)
+meta_clusters = [[gleason_points[k] for k in c] for c in meta_clusters_indices]
 
 
 # sns.heatmap(linked, yticklabels=img_ids)

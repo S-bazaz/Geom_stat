@@ -624,9 +624,17 @@ def transform_gleason(bootstraps):
         gleason_coords = []
         for c in b["clusters"]:
             cluster_images = images.iloc[c]
-            nb_gleason3 = np.sum([(s[8]=="3") for s in cluster_images])
-            nb_gleason4 = np.sum([(s[8]=="4") for s in cluster_images])
-            nb_gleason5 = np.sum([(s[8]=="5") for s in cluster_images])
+            nb_gleason3 = np.sum([(s[:9]=="Gleason 3") for s in cluster_images])
+            nb_gleason4 = np.sum([(s[:9]=="Gleason 4") for s in cluster_images])
+            nb_gleason5 = np.sum([(s[:9]=="Gleason 5") for s in cluster_images])
+            
             gleason_coords.append([nb_gleason3, nb_gleason4, nb_gleason5])
         b["gleason_coords"] = np.array(gleason_coords)
     return bootstraps
+
+def meta_clustering(gleason_points, nb_clusters=6):
+    linked = linkage(gleason_points, method='ward')
+    meta_clusters_indices = fcluster(linked, nb_clusters, criterion="maxclust")
+    meta_clusters = [[j for j in range(len(meta_clusters_indices)) if meta_clusters_indices[j]==i] for i in range(1,nb_clusters+1)]
+    return meta_clusters
+
