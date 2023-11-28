@@ -37,7 +37,7 @@ from utils_tda_and_clustering import (
     get_clusters,
     transform_gleason,
     meta_clustering,
-
+    choose_representative_bootstrap
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -75,6 +75,7 @@ gleason_points = np.array([b["gleason_coords"] for b in gleason_bootstraps]).res
 meta_clusters_indices = meta_clustering(gleason_points)
 meta_clusters = [[gleason_points[k] for k in c] for c in meta_clusters_indices]
 
+representative_bootstrap = choose_representative_bootstrap(gleason_bootstraps, meta_clusters)
 
 # sns.heatmap(linked, yticklabels=img_ids)
 
@@ -98,7 +99,6 @@ meta_clusters = [[gleason_points[k] for k in c] for c in meta_clusters_indices]
 
 
 # t-SNE clustering
-for k in range(3,4):
-    embedding_mat3 = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=47).fit_transform(embedding_mat2)
-    fig = px.scatter(x = embedding_mat3[:,0], y = embedding_mat3[:,1],template="plotly_dark", hover_name = img_ids, title = "T-SNE après ACP")
-    plot(fig)
+embedding_mat3 = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=47).fit_transform(representative_bootstrap["reduced"])
+fig = px.scatter(x = embedding_mat3[:,0], y = embedding_mat3[:,1],template="plotly_dark", hover_name = img_ids, title = "T-SNE après ACP")
+plot(fig)

@@ -638,3 +638,17 @@ def meta_clustering(gleason_points, nb_clusters=6):
     meta_clusters = [[j for j in range(len(meta_clusters_indices)) if meta_clusters_indices[j]==i] for i in range(1,nb_clusters+1)]
     return meta_clusters
 
+def choose_representative_bootstrap(gleason_bootstraps, meta_clusters):
+    min_distance = np.infty
+    meta_centroids = [np.mean(c) for c in meta_clusters]
+    for b in gleason_bootstraps:
+        dist = 0
+        gleason_coords = b["gleason_coords"]
+        for c in gleason_coords:
+            for k in range(len(meta_clusters)):
+                if np.equal(meta_clusters[k],c).all(1).any():
+                    dist += np.linalg.norm(meta_centroids[k]-c)
+        if dist<min_distance:
+            min_distance=dist
+            representative_bootstrap = b
+    return representative_bootstrap
