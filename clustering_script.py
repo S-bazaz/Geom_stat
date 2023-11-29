@@ -37,7 +37,8 @@ from utils_tda_and_clustering import (
     get_clusters,
     transform_gleason,
     meta_clustering,
-    choose_representative_bootstrap
+    choose_representative_bootstrap,
+    get_meta_bootstraps
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -68,14 +69,24 @@ clustered_bootstraps, clustered_original = get_clusters(reduced_bootstraps, redu
 # Adding the gleason space coordinates to the bootstraps
 gleason_bootstraps = transform_gleason(bootstraps)
 
-# Extracting only Gleason coordinates and reshaping the matrix
+# Extracting only clusters and corrsponding Gleason coordinates and reshaping the matrix
+clusters = []
+for b in gleason_bootstraps:
+    clusters = clusters + b["clusters"]
 gleason_points = np.array([b["gleason_coords"] for b in gleason_bootstraps]).reshape(-1,3)
 
 # Meta-clustering to get the 6 meta-clusters
 meta_clusters_indices = meta_clustering(gleason_points)
-meta_clusters = [[gleason_points[k] for k in c] for c in meta_clusters_indices]
+meta_clusters = [[clusters[k] for k in c] for c in meta_clusters_indices]
 
-representative_bootstrap = choose_representative_bootstrap(gleason_bootstraps, meta_clusters)
+# Selection of a representative bootstrap for visualization
+meta_clusters_gleason_coords = [[gleason_points[k] for k in c] for c in meta_clusters_indices]
+representative_bootstrap = choose_representative_bootstrap(gleason_bootstraps, meta_clusters_gleason_coords)
+
+# Bootstrap of meta-clusters to assess stability
+meta_bootstraps = get_meta_bootstraps(meta_clusters)
+
+print(meta_clusters, meta_bootstraps)
 
 # sns.heatmap(linked, yticklabels=img_ids)
 

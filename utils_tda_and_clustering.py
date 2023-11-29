@@ -652,3 +652,20 @@ def choose_representative_bootstrap(gleason_bootstraps, meta_clusters):
             min_distance=dist
             representative_bootstrap = b
     return representative_bootstrap
+
+def get_meta_bootstraps(meta_clusters, n_bootstraps=1000):
+    bootstraps = []
+    for _ in range(n_bootstraps):
+        bootstrap = []
+        for c in meta_clusters: # Bootstrapping each meta-cluster
+            bootstrap.append((np.array(c)[np.random.choice(len(c), len(c), replace=True)]).tolist())
+        bootstraps.append(np.concatenate(bootstrap).ravel())
+    return bootstraps
+
+def get_jaccard(bootstrap, meta_clusters):
+    matrix = np.zeros((len(bootstrap), len(bootstrap)))
+    for i in range(i,len(bootstrap)):
+        for j in range(len(bootstrap)):
+            c1 = bootstrap[i]
+            c2 = meta_clusters[j]
+            
