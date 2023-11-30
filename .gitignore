@@ -30,3 +30,4 @@ TestResults.xml
 *.png
 *.zip
 *.parquet
+*.pickle

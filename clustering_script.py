@@ -5,6 +5,7 @@
 import os
 import sys 
 
+import pickle
 
 from pathlib import Path
 import seaborn as sns 
@@ -38,7 +39,8 @@ from utils_tda_and_clustering import (
     transform_gleason,
     meta_clustering,
     choose_representative_bootstrap,
-    get_meta_bootstraps
+    get_meta_bootstraps,
+    get_stability
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -55,6 +57,14 @@ base_name = "b1"
 base_path = str(saving_path.joinpath(f"{base_name}.parquet"))
 df_ident, bootstraps, original = homology_parquet_to_matrix_bootstraps(base_path)
 print("bootstrap ok")
+
+# Uncomment if you want to save the current bootstraps
+# with open("df_ident.pickle", "wb") as f:
+#     pickle.dump(df_ident, f)
+# with open("bootstraps.pickle", "wb") as f:
+#     pickle.dump(bootstraps, f)
+# with open("original.pickle", "wb") as f:
+#     pickle.dump(original, f)
 
 # get images ids to identify similarities with Gleason classification
 img_ids = df_ident["img_id"]
@@ -86,7 +96,17 @@ representative_bootstrap = choose_representative_bootstrap(gleason_bootstraps, m
 # Bootstrap of meta-clusters to assess stability
 meta_bootstraps = get_meta_bootstraps(meta_clusters)
 
-print(meta_clusters, meta_bootstraps)
+meta_clusters_fused = []
+for c in meta_clusters:
+    for cluster in c:
+        meta_clusters_fused.append(cluster)
+
+stabilities = []
+for b in tqdm(meta_bootstraps):
+    stability = get_stability(b, meta_clusters_fused)
+    stabilities.append(stability)
+
+print(np.mean(stabilities), np.std(stabilities))
 
 # sns.heatmap(linked, yticklabels=img_ids)
 

@@ -658,14 +658,26 @@ def get_meta_bootstraps(meta_clusters, n_bootstraps=1000):
     for _ in range(n_bootstraps):
         bootstrap = []
         for c in meta_clusters: # Bootstrapping each meta-cluster
-            bootstrap.append((np.array(c)[np.random.choice(len(c), len(c), replace=True)]).tolist())
-        bootstraps.append(np.concatenate(bootstrap).ravel())
+            indices = np.random.choice(len(c), len(c), replace=True)
+            bootstrap += [c[i] for i in indices]
+        bootstraps.append(bootstrap)
     return bootstraps
 
-def get_jaccard(bootstrap, meta_clusters):
-    matrix = np.zeros((len(bootstrap), len(bootstrap)))
-    for i in range(i,len(bootstrap)):
-        for j in range(len(bootstrap)):
-            c1 = bootstrap[i]
-            c2 = meta_clusters[j]
+def get_stability(bootstrap, meta_clusters):
+    visited = []
+    max_similarities = np.zeros(len(bootstrap))
+    for i in range(len(bootstrap)):
+        for j in range(i,len(bootstrap)):
+            if j not in visited:
+                c1 = np.array(bootstrap[i])
+                c2 = np.array(meta_clusters[j])
+                intersection = len(np.intersect1d(c1,c2))
+                jaccard = intersection/(len(c1)+len(c2)-intersection)
+                if jaccard>max_similarities[i]:
+                    max_similarities[i] = jaccard
+                    best = j
+        visited.append(best)
+
+    return np.mean(max_similarities)
+
             
