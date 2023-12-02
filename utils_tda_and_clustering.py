@@ -554,7 +554,7 @@ def homology_parquet_to_matrix_bootstraps(base_path: Path):
 
         for i in range(len(bootstrap.index)):
             embedding_mat[i, :] = np.array(series_h0[i]+series_h1[i])
-        b = {"embedding_mat" : embedding_mat, "images" : df_ident["img_id"].iloc[indices_bootstrap]}
+        b = {"embedding_mat" : embedding_mat, "images" : df_ident["img_id"].iloc[indices_bootstrap].to_numpy()}
         bootstraps.append(b)
 
     # Original data processing
