@@ -55,7 +55,17 @@ saving_path = root_path.joinpath("outputs")
 # importation and vectorization of diagrams
 base_name = "b1"
 base_path = str(saving_path.joinpath(f"{base_name}.parquet"))
+
+# Si les bootstraps sont pas encore créés
 df_ident, bootstraps, original = homology_parquet_to_matrix_bootstraps(base_path)
+
+# Uncomment si les bootstraps sont déjà sauvegardés
+with open("df_ident.pickle", "rb") as f:
+    df_ident = pickle.load(f)
+with open("bootstraps.pickle", "rb") as f:
+    bootstraps = pickle.load(f)
+with open("original.pickle", "rb") as f:
+    original = pickle.load(f)
 print("bootstrap ok")
 
 # Uncomment if you want to save the current bootstraps
