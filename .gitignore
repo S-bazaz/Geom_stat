@@ -31,3 +31,4 @@ TestResults.xml
 *.zip
 *.parquet
 *.pickle
+*.pkl
