@@ -510,20 +510,26 @@ def homology_parquet_to_matrix_bootstraps(base_path: Path):
     indices_gleason4 = np.array([i for i in np.arange(len(df.index)) if df.iloc[i]["img_id"][:9]=="Gleason 4"])
     indices_gleason5 = np.array([i for i in np.arange(len(df.index)) if df.iloc[i]["img_id"][:9]=="Gleason 5"])
 
+    nb_gleason3 = len(indices_gleason3)
+    nb_gleason4 = len(indices_gleason4)
+    nb_gleason5 = len(indices_gleason5)
+
+    bootstrap_len = min([nb_gleason3, nb_gleason4, nb_gleason5]) # To have the same proportion of each Gleason type
+
     # Bootstraps creation
 
     bootstraps = []
 
     for _ in tqdm(range(100)): # We create 100 bootstraps
-        indices_gleason3_bootstrap = np.random.choice(np.arange(len(indices_gleason3)),len(indices_gleason3),replace=True)
-        indices_gleason4_bootstrap = np.random.choice(np.arange(len(indices_gleason4)),len(indices_gleason4),replace=True)
-        indices_gleason5_bootstrap = np.random.choice(np.arange(len(indices_gleason5)),len(indices_gleason5),replace=True)
+        indices_gleason3_bootstrap = np.random.choice(np.arange(len(indices_gleason3)),bootstrap_len,replace=False)
+        indices_gleason4_bootstrap = np.random.choice(np.arange(len(indices_gleason4)),bootstrap_len,replace=False)
+        indices_gleason5_bootstrap = np.random.choice(np.arange(len(indices_gleason5)),bootstrap_len,replace=False)
 
         gleason3_bootstrap = indices_gleason3[indices_gleason3_bootstrap]
         gleason4_bootstrap = indices_gleason4[indices_gleason4_bootstrap]
         gleason5_bootstrap = indices_gleason5[indices_gleason5_bootstrap]
 
-        indices_bootstrap = np.concatenate([gleason3_bootstrap, gleason4_bootstrap, gleason5_bootstrap]) # To respect the proportion of each Gleason type
+        indices_bootstrap = np.concatenate([gleason3_bootstrap, gleason4_bootstrap, gleason5_bootstrap])
 
         bootstrap = df.iloc[indices_bootstrap]
         bootstrap = bootstrap.reset_index(drop=True)
@@ -625,7 +631,7 @@ def transform_gleason(bootstraps):
         images = b["images"]
         gleason_coords = []
         for c in b["clusters"]:
-            cluster_images = images[c] #images.iloc[c]
+            cluster_images = images[c]
             nb_gleason3 = np.sum([(s[:9]=="Gleason 3") for s in cluster_images])
             nb_gleason4 = np.sum([(s[:9]=="Gleason 4") for s in cluster_images])
             nb_gleason5 = np.sum([(s[:9]=="Gleason 5") for s in cluster_images])
@@ -669,7 +675,7 @@ def get_stability(bootstrap, meta_clusters):
     visited = []
     max_similarities = np.zeros(len(bootstrap))
     for i in range(len(bootstrap)):
-        for j in range(i,len(bootstrap)):
+        for j in range(len(bootstrap)):
             if j not in visited:
                 c1 = np.array(bootstrap[i])
                 c2 = np.array(meta_clusters[j])
