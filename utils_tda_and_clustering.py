@@ -29,10 +29,10 @@ from sklearn.manifold import TSNE
 from sklearn.mixture import GaussianMixture
 from sklearn.cluster import DBSCAN
 
-# from scipy.spatial.distance import pdist
-# from scipy.cluster.hierarchy import ward
+
 
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+import scipy.spatial.distance as ssd
 import matplotlib.pyplot as plt
 
 from plotly.offline import plot
@@ -701,20 +701,25 @@ def get_repr_imgs_and_clustering(representative_bootstrap):
     return repr_img, repr_clustering_6, repr_clustering_gleason
 
 
-def save_tsne(representative_bootstrap, saving_path, lst_perplexity=[47], save_pair_plot = False):
+def save_tsne(representative_bootstrap, saving_path, lst_perplexity=[47], save_pair_plot = False, test_other_clust = True, metric = ""):
     repr_img, repr_clustering_6, repr_clustering_gleason = get_repr_imgs_and_clustering(representative_bootstrap)
     repr_reduced = representative_bootstrap["reduced"]
+    if test_other_clust:
+        dct_clust = {
+            "Ward": repr_clustering_6,
+            "GMM":GaussianMixture(n_components=6, random_state=0).fit_predict(repr_reduced).astype(str),
+            "HDBSCAN": DBSCAN(eps = 0.01).fit_predict(repr_reduced).astype(str),
 
-    dct_clust = {
-        "Ward": repr_clustering_6,
-        "GMM":GaussianMixture(n_components=6, random_state=0).fit_predict(repr_reduced).astype(str),
-        "HDBSCAN": DBSCAN(eps = 0.01).fit_predict(repr_reduced).astype(str),
+        }
+    else:
+        dct_clust = {
+            "Ward": repr_clustering_6,
+        }
 
-    }
     pair_plot = save_pair_plot
     if pair_plot:
-        df_reduced = pd.DataFrame(representative_bootstrap["reduced"], columns = np.arange(6))
-        fig = sns.pairplot(fig = sns.pairplot(df_reduced))
+        df_reduced = pd.DataFrame(repr_reduced, columns = np.arange(6))
+        fig = sns.pairplot(df_reduced)
         plt.savefig(str(saving_path.joinpath(f"representativ_pair_plot.png")))
 
         for algo_name, clust in dct_clust.items():
@@ -726,7 +731,7 @@ def save_tsne(representative_bootstrap, saving_path, lst_perplexity=[47], save_p
                                 learning_rate='auto', 
                                 init='random', 
                                 perplexity=perplexity
-                                ).fit_transform(representative_bootstrap["reduced"])
+                                ).fit_transform(repr_reduced)
         
 
 
@@ -739,18 +744,15 @@ def save_tsne(representative_bootstrap, saving_path, lst_perplexity=[47], save_p
                 symbol = repr_clustering_gleason,
                 template="plotly_dark", 
                 hover_name = repr_img, 
-                marker=dict(size=12),
-                title = f"<b>T-SNE representative bootstrap</b> Clustering {algo_name} <br> perplexity = {perplexity}"
+                title = f"<b>T-SNE representative bootstrap</b> Clustering {metric} {algo_name} <br> perplexity = {perplexity}"
             )
-            fig.write_html(str(saving_path.joinpath(f"repr_tsne_perplexity_{algo_name}-{perplexity}.html")))
+            fig.write_html(str(saving_path.joinpath(f"repr_tsne_perplexity_{metric}{algo_name}-{perplexity}.html")))
             if pair_plot:
                 fig = sns.pairplot(df_reduced[np.arange(6).tolist()+[algo_name]], 
                         hue=algo_name
                                 )
-                plt.savefig(str(saving_path.joinpath(f"representativ_pair_plot_clustered_{algo_name}.png")))
+                plt.savefig(str(saving_path.joinpath(f"representativ_pair_plot_clustered_{metric}{algo_name}.png")))
         pair_plot = False 
-
-
 
 def split_imgs_by_clusters(representative_bootstrap, clutering):
     repr_img = representative_bootstrap["images"]
@@ -780,13 +782,6 @@ def get_df_by_cluster_and_h(base_path, representative_bootstrap, clutering):
         dct_df[f"{clust_name}_h1"] = df_h1
     return dct_df
 
-# def get_representative_df_h0_h1(base_path, representative_bootstrap):
-
-#     df = pd.read_parquet(base_path)
-#     df_repr = df.loc[df["img_id"].isin(representative_bootstrap["images"])] 
-#     df_repr["clusters"]= representative_bootstrap["clusters"]
-
-#     return df_repr
 
 def save_homology_densities_one_cluster(df,  cluster_name="c1", saving_path=None, show=False):
     plt.clf()
@@ -812,9 +807,8 @@ def save_homology_densities_one_cluster(df,  cluster_name="c1", saving_path=None
         plt.savefig(figpath) 
 
 
-def save_homology_densities(base_path, representative_bootstrap, saving_path):
+def save_homology_densities(base_path, representative_bootstrap, saving_path, metric = "" ):
     repr_img, repr_clustering_6, repr_clustering_gleason = get_repr_imgs_and_clustering(representative_bootstrap)
-    repr_reduced = representative_bootstrap["reduced"]
 
     dct_clust = {
             "Ward": repr_clustering_6,
@@ -823,4 +817,79 @@ def save_homology_densities(base_path, representative_bootstrap, saving_path):
     for algo_name, clust in dct_clust.items():
         dct_df = get_df_by_cluster_and_h(base_path, representative_bootstrap, clust)
         for clust_name, df in dct_df.items():
-            save_homology_densities_one_cluster(df,  f"{algo_name}_{clust_name}", saving_path=saving_path, show=False)
+            save_homology_densities_one_cluster(df,  f"{metric}{algo_name}_{clust_name}", saving_path=saving_path, show=False)
+
+
+########################
+#   dtw exploration    #
+########################
+
+from tslearn.metrics import dtw as ts_dtw
+
+def get_all_diagram_as_list(base_path):
+    df = pd.read_parquet(base_path)
+    lst_st = []
+    lst_gleason_class = []
+    f_convert = lambda lst: list(map(float, lst))
+    for index, row in df.iterrows():
+        arr_h1 = f_convert(row["h0__Persistences"].split("\n"))
+        arr_h0 = f_convert(row["h1__Persistences"].split("\n"))
+        lst_st.append([arr_h0, arr_h1])
+        lst_gleason_class.append(row["img_id"][:9])
+    return lst_st, lst_gleason_class
+
+
+#Complètement brute force => long! (20-48h)
+# à parallèliser avec kleops
+def get_dtw_mat(lst_st):
+    mat_dist = np.zeros((len(lst_st), len(lst_st)))
+    for i in tqdm(range(len(lst_st))):
+        for j in range(i-1):
+            h0_i = lst_st[i][0]
+            h1_i = lst_st[i][1]
+            h0_j = lst_st[j][0]
+            h1_j = lst_st[j][1]
+
+            h0_dtw = ts_dtw(h0_i, h0_j)
+            h1_dtw = ts_dtw(h1_i, h1_j)
+
+            mat_dist[i,j] = np.linalg.norm([h0_dtw, h1_dtw])
+            mat_dist[j,i] = np.linalg.norm([h0_dtw, h1_dtw])
+    return mat_dist
+
+def update_clustering_from_mat_dist(mat_dist, representative_bootstrap, nb_clusters=6):
+    condensed_dist_mat = ssd.squareform(mat_dist) # distArray[{n choose 2}-{n-i choose 2} + (j-i-1)] is the distance between points i and j
+    linked = linkage(condensed_dist_mat, 'ward')
+    clusters_indices = fcluster(linked, nb_clusters, criterion="maxclust")
+    clusters = [[j for j in range(len(clusters_indices)) if clusters_indices[j]==i] for i in range(1,nb_clusters+1)]
+    representative_bootstrap["clusters"] = clusters
+    gleason_coords = []
+    for c in representative_bootstrap["clusters"]:
+        cluster_images = representative_bootstrap["images"][c] #images.iloc[c]
+        nb_gleason3 = np.sum([(s[:9]=="Gleason 3") for s in cluster_images])
+        nb_gleason4 = np.sum([(s[:9]=="Gleason 4") for s in cluster_images])
+        nb_gleason5 = np.sum([(s[:9]=="Gleason 5") for s in cluster_images])
+        
+        gleason_coords.append([nb_gleason3, nb_gleason4, nb_gleason5])
+    representative_bootstrap["gleason_coords"] = np.array(gleason_coords)
+
+import dtaidistance as dtai
+
+def get_dtw_mat_fast(base_path):
+    df = pd.read_parquet(base_path)
+    lst_st_h0 = []
+    lst_st_h1 = []
+    f_convert = lambda lst: list(map(float, lst))
+    for index, row in df.iterrows():
+        arr_h1 = np.array(f_convert(row["h0__Persistences"].split("\n")))
+        arr_h0 = np.array(f_convert(row["h1__Persistences"].split("\n")))
+        lst_st_h0.append(arr_h0)
+        lst_st_h0.append(arr_h1)
+    mat_h0 =  dtai.dtw.distance_matrix_fast(lst_st_h0)
+    mat_h1 =  dtai.dtw.distance_matrix_fast(lst_st_h1)
+    return np.sqrt(mat_h0**2+mat_h1**2)
+
+def get_sub_dist_mat(mat_dist, representative_bootstrap, df_ident):
+    imgs = representative_bootstrap["images"]
+    index_repr = df_ident["img_id"].isin(imgs)
+    return mat_dist[index_repr, :][:, index_repr]

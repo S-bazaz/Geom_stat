@@ -20,7 +20,7 @@ from sklearn.manifold import TSNE
 
 from tqdm import tqdm
 import numpy as np
-
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -43,7 +43,14 @@ from utils_tda_and_clustering import (
     get_meta_bootstraps,
     get_stability,
     save_homology_densities,
-    get_repr_imgs_and_clustering
+    get_repr_imgs_and_clustering,
+    pca_before_clustering,
+    get_all_diagram_as_list,
+    get_dtw_mat,
+    get_dtw_mat_fast,
+    get_sub_dist_mat,
+    update_clustering_from_mat_dist
+
 )
 
 img_path = root_path.joinpath("raw_images")
@@ -66,8 +73,8 @@ with open(str(saving_path.joinpath("df_ident.pkl")), "rb") as f:
     df_ident = pickle.load(f)
 # with open(str(saving_path.joinpath("bootstraps.pkl")), "rb") as f:
 #     bootstraps = pickle.load(f)
-# with open(str(saving_path.joinpath("original.pkl")), "rb") as f:
-#     original = pickle.load(f)
+with open(str(saving_path.joinpath("original.pkl")), "rb") as f:
+    original = pickle.load(f)
 # print("bootstrap ok")
 
 # Uncomment if you want to save the current bootstraps
@@ -84,7 +91,7 @@ with open(str(saving_path.joinpath("df_ident.pkl")), "rb") as f:
 
 
 # get images ids to identify similarities with Gleason classification
-img_ids = df_ident["img_id"]
+# img_ids = df_ident["img_id"]
 
 # PCA
 # reduced_bootstraps, reduced_original, vars_explained = make_pca_bootstraps(bootstraps, original)
@@ -153,7 +160,7 @@ with open(str(saving_path.joinpath("representative_bootstrap.pkl")), "rb") as f:
 #############
 
 # t-SNE clustering
-print("T-SNE")
+# print("T-SNE")
 # embedding_mat3 = TSNE(n_components=3, learning_rate='auto', init='random', perplexity=47).fit_transform(representative_bootstrap["reduced"])
 
 # with open(str(saving_path.joinpath("representative_tsne.pkl")), "wb") as f:
@@ -191,9 +198,8 @@ print("T-SNE")
 print("Plotting")
 
 
-
 ##### T-SNE
-save_tsne(representative_bootstrap, saving_path, lst_perplexity=[100], save_pair_plot = True)
+#save_tsne(representative_bootstrap, saving_path, lst_perplexity=[100], save_pair_plot = True)
 
 
 ##### Densities
@@ -206,7 +212,6 @@ save_tsne(representative_bootstrap, saving_path, lst_perplexity=[100], save_pair
 # df_reduced= pd.DataFrame(representative_bootstrap["reduced"],columns = np.arange(6))
 # fig = sns.pairplot(df_reduced)
 # plt.savefig(str(saving_path.joinpath(f"representativ_pair_plot.png")))
-
 
 ##### PCA point cloud
 # #print(representative_bootstrap["gleason_coords"]})
@@ -240,3 +245,62 @@ save_tsne(representative_bootstrap, saving_path, lst_perplexity=[100], save_pair
 #              template = "plotly_dark"
 #              )
 # fig.write_html(str(saving_path.joinpath(f"repr_gleason_count.html")))
+
+##################
+#   DTW tests    #
+##################
+
+
+##### matrice de distances
+
+import time as t
+
+# lst_st, lst_gleason_class = get_all_diagram_as_list(base_path)
+# mat_dist = get_dtw_mat(lst_st)
+
+
+# t1 = t.time()
+# mat_dist2 = get_dtw_mat_fast(base_path)
+# t2 = t.time()
+
+# print(f"mat dist done! t={t2-t1}")
+
+# with open(str(saving_path.joinpath("mat_dist.pkl")), "wb") as f:
+#     pickle.dump(mat_dist, f)
+
+with open(str(saving_path.joinpath("mat_dist.pkl")), "rb") as f:
+    mat_dist = pickle.load(f)
+
+
+#### test original
+reduced_original,_ = pca_before_clustering(original["embedding_mat"], n_components = 6, standard = False) # We will need the original data to compute the Gap Statistic
+original["reduced"] = reduced_original
+
+
+##### Analyse
+nclust = 3
+update_clustering_from_mat_dist(mat_dist, original, nb_clusters=nclust)
+
+save_tsne(original, saving_path, lst_perplexity=[50,100,200], save_pair_plot = False, test_other_clust = False, metric = f"dtw{nclust}")
+
+#save_homology_densities(base_path, original, saving_path, metric = f"dtw{nclust}")
+
+#### Gleason barplot
+
+# gleason_coord = original["gleason_coords"]
+
+# df_gleason = pd.DataFrame({
+#     "Number": gleason_coord.reshape(3*nclust),
+#     "Gleason class":np.tile([f"Gleason {k}" for k in range(3,6)], nclust),
+#     "Cluster":np.repeat(np.arange(1,nclust+1), 3)
+# })
+
+# fig = px.bar(df_gleason, 
+#              x="Cluster", 
+#              y="Number",
+#              color="Gleason class",
+#              title="<b>DTW Gleason proportion for each cluster</b> ", 
+#              template = "plotly_dark"
+#              )
+# fig.write_html(str(saving_path.joinpath(f"repr_gleason_countdtw{nclust}.html")))
+
